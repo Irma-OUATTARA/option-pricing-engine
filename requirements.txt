@@ -1,0 +1,11 @@
+# --- Phase 0 et suivantes : cœur scientifique ---
+numpy>=2.1          # support Python 3.13
+scipy>=1.14.1
+matplotlib>=3.9
+pandas>=2.2.3
+jupyter>=1.1
+
+# --- Ajoutés plus tard ---
+yfinance>=0.2.40    # Phase 4 : chaînes d'options réelles
+QuantLib>=1.35      # Phase 5 : validation des prix
+pytest>=8.0         # Phase 5 : tests unitaires

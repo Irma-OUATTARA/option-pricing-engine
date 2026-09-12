@@ -1,0 +1,800 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{charter}
+\usepackage[scaled=0.86]{helvet}
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{xcolor}
+\usepackage{microtype}
+\usepackage[margin=2.3cm]{geometry}
+\usepackage[colorlinks=true,linkcolor=blue!50!black,urlcolor=blue!55!black]{hyperref}
+\usepackage{titlesec}
+\usepackage{tcolorbox}
+
+\definecolor{bleufonce}{RGB}{31,78,156}
+\definecolor{rougefonce}{RGB}{155,34,38}
+\definecolor{grisclair}{RGB}{245,246,248}
+
+\titleformat{\section}{\large\bfseries\color{bleufonce}}{\thesection}{0.7em}{}
+\titleformat{\subsection}{\normalsize\bfseries}{\thesubsection}{0.6em}{}
+\titlespacing*{\section}{0pt}{13pt}{5pt}
+\titlespacing*{\subsection}{0pt}{9pt}{3pt}
+
+\newtcolorbox{encadre}{colback=grisclair,colframe=bleufonce,boxrule=0.5pt,
+  left=6pt,right=6pt,top=5pt,bottom=5pt}
+\newtcolorbox{choix}{colback=white,colframe=rougefonce,boxrule=0.5pt,
+  left=6pt,right=6pt,top=5pt,bottom=5pt}
+
+\setlength{\parskip}{4pt}
+\setlength{\parindent}{0pt}
+\frenchspacing
+
+\newcommand{\ou}[1]{\textit{\small Où cela figure dans le rapport : #1}}
+
+\title{\vspace{-1.6cm}\bfseries Note méthodologique\\
+\large Valeurs de référence, erreur type, pente de convergence\\
+et nombre de trajectoires}
+\author{\normalsize Moteur de pricing d'options --- annexe technique}
+\date{\normalsize\today}
+
+\begin{document}
+\maketitle
+\vspace{-0.7cm}
+
+\begin{encadre}
+\textbf{Objet.} Le rapport annonce des prix d'exotiques, des erreurs types, des
+pentes de convergence et des nombres de trajectoires. Cette note dit
+\emph{comment chacun de ces nombres est obtenu} : avec quels paramètres, sur
+combien de trajectoires, avec quelle graine, et par quel calcul exact. Chaque
+section indique le tableau ou la section du rapport concerné.
+
+Elle signale aussi, en encadré rouge, chaque \textbf{choix arbitraire} :
+là où plusieurs options étaient défendables, laquelle a été retenue et pourquoi.
+\end{encadre}
+
+\section{Le point de référence, commun à tout le rapport}
+
+Sauf mention contraire, tous les chiffres du rapport et de cette note portent
+sur le même contrat :
+
+\begin{center}
+\small
+\begin{tabular}{lll}
+\toprule
+Spot $S_0$ & 100 & prix courant du sous-jacent \\
+Strike $K$ & 100 & à la monnaie \\
+Taux sans risque $r$ & 5 \% & composition continue \\
+Volatilité $\sigma$ & 20 \% & annualisée \\
+Maturité $T$ & 1 an & \\
+Rendement $q$ & 0 & action sans dividende \\
+Fixings $n$ & \textbf{252} & pour les produits path-dependent uniquement \\
+Barrière $B$ & 120 & pour les options à barrière \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\begin{choix}
+\textbf{Choix : $n = 252$.} C'est le nombre de jours de bourse dans une année.
+Ce choix n'est pas neutre et doit être cité à côté de chaque prix
+d'exotique : une barrière \emph{out} observée 100 fois par an vaut 1,42, la
+même observée 252 fois vaut 1,33. Moins on observe, moins l'option a
+d'occasions de mourir, donc plus elle est chère. Même mécanisme sur
+l'asiatique : moins de fixings, moins de lissage, prix plus élevé.
+\end{choix}
+
+\section{L'erreur type}
+
+\ou{tableaux 6, 7, 8 et 10 --- toutes les colonnes « erreur type » et « IC95 ».}
+
+\subsection{Ce que c'est}
+
+Un prix Monte-Carlo est une \textbf{moyenne}. On tire $M$ trajectoires, on
+calcule le gain de l'option sur chacune, on actualise, on fait la moyenne.
+
+Relancé avec d'autres tirages, le calcul ne rend pas exactement le même prix.
+\textbf{L'erreur type mesure de combien ce prix bougerait d'une exécution à
+l'autre.} C'est l'incertitude propre à la méthode numérique : même un moteur
+parfaitement juste la subit.
+
+\subsection{Deux quantités qu'il ne faut pas confondre}
+
+\begin{itemize}\setlength\itemsep{1pt}
+\item \textbf{$\omega$, l'écart-type des gains.} Dispersion des trajectoires
+      \emph{individuelles} : certaines rapportent zéro, d'autres beaucoup.
+      C'est une propriété du produit. \textbf{Elle ne diminue pas quand on
+      simule davantage.}
+\item \textbf{SE, l'erreur type.} Dispersion de la \emph{moyenne}. Elle vaut
+      $\omega/\sqrt{M}$, et elle diminue.
+\end{itemize}
+
+\subsection{Le calcul, vérifié à la main}
+
+Asiatique arithmétique, $M = 50\,000$, $n = 252$, graine 12345 :
+
+\begin{center}
+\small
+\begin{tabular}{lr}
+\toprule
+Moyenne des gains actualisés (le prix) & 5,786023 \\
+Écart-type des gains $\omega$ & \textbf{8,046696} \\
+Erreur type $=\ \omega/\sqrt{50\,000}$ & \textbf{0,035986} \\
+Valeur rendue par le moteur & 0,035986 \\
+\midrule
+Part des trajectoires qui rapportent zéro & 44,4 \% \\
+Demi-largeur IC 95 \% $=\ 1{,}96 \times 0{,}035986$ & 0,0705 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+La dispersion des gains ($8{,}05$) vaut 1,4 fois le prix lui-même. C'est
+normal : 44 \% des trajectoires ne rapportent rien, une minorité rapporte
+beaucoup. Diviser par $\sqrt{M}$ ramène cette dispersion à trois centimes et
+demi.
+
+\begin{choix}
+\textbf{Choix : $\pm 1{,}96$ et non $\pm 2$ ou $\pm 3$.} Le facteur 1,96 donne
+un intervalle à 95 \%, la convention usuelle. Il repose sur le théorème central
+limite, légitime ici car $M \geq 10^4$, malgré l'asymétrie extrême de la
+distribution des gains. À $M$ très petit (quelques centaines), l'intervalle
+serait optimiste.
+\end{choix}
+
+\begin{encadre}
+\textbf{Le piège du mode antithétique.} Avec des variables antithétiques, les
+tirages vont par paires corrélées : ils ne sont plus indépendants. L'erreur
+type doit alors être calculée sur les \emph{moyennes de paires}, qui sont
+indépendantes entre elles, et non sur l'échantillon aplati. Appliquer
+$\omega/\sqrt{M}$ à l'ensemble des tirages conduit à ne mesurer aucun gain et à
+conclure à tort que la technique est inefficace. Le prix reste correct ; c'est
+l'instrument de mesure de sa précision qui est faussé. Le moteur gère cela dans
+\texttt{\_summarize}.
+\end{encadre}
+
+\section{Les valeurs de référence}
+
+\subsection{Le principe : l'ancrage}
+
+Une option européenne a une valeur exacte, donnée par Black--Scholes. Une
+asiatique arithmétique ou une barrière n'en ont aucune : ni formule, ni prix
+coté sur le marché. Il faut donc \emph{fabriquer} une valeur de référence, et
+savoir dire à quel point on peut lui faire confiance.
+
+Le rapport utilise quatre références. Deux sont exactes, deux sont simulées.
+
+\begin{center}
+\small
+\begin{tabular}{llll}
+\toprule
+Référence & Valeur & Nature & Incertitude \\
+\midrule
+Call européen & 10,4506 & formule Black--Scholes & \textbf{aucune} \\
+Asiatique géométrique & 5,5655 & formule fermée & \textbf{aucune} \\
+Asiatique arithmétique & 5,7822 & simulation + contrôle & $\pm$ 0,0004 \\
+Barrière up-and-in & 9,1235 & simulation + contrôle & $\pm$ 0,0077 \\
+Barrière up-and-out & 1,3271 & simulation, sans contrôle & $\pm$ 0,0077 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{Référence 1 --- le call européen : 10,4506}
+
+\ou{tableaux 6, 7, 8 et 14, sections 5.4 et 11.4.}
+
+Aucune simulation. C'est la formule de Black--Scholes appliquée au point de
+référence. Cette valeur ne porte aucune incertitude : c'est un nombre calculé,
+pas estimé. Elle sert d'étalon aux trois méthodes du moteur.
+
+\subsection{Référence 2 --- l'asiatique géométrique : 5,5655}
+
+\ou{section 8.1, tableau 14, section 11.4 niveau 3.}
+
+Aucune simulation non plus. Un produit de variables log-normales reste
+log-normal : la moyenne géométrique des 252 prix a donc une loi connue, et le
+prix s'écrit sous une forme de type Black--Scholes (équation 30 du rapport).
+
+Cette option n'a pratiquement aucun usage commercial. Elle est précieuse pour
+deux raisons seulement : elle valide le pricer exotique sur un cas où la vérité
+est connue, et elle sert de variable de contrôle à l'asiatique arithmétique.
+
+\subsection{Référence 3 --- l'asiatique arithmétique : 5,7822}
+
+\ou{tableaux 6, 8 et 14, section 4.7.}
+
+C'est la référence la plus construite du projet. Aucune formule n'existe :
+une somme de variables log-normales n'est pas log-normale.
+
+\subsubsection*{Tous les paramètres}
+
+\begin{center}
+\small
+\begin{tabular}{ll}
+\toprule
+Payoff & $\max(\text{moyenne arithmétique des 252 prix} - K,\ 0)$ \\
+Trajectoires par lot & \textbf{100\,000} \\
+Nombre de lots & \textbf{10} \\
+Trajectoires au total & \textbf{1\,000\,000} \\
+Tirages gaussiens au total & 252 millions \\
+Graines & 999, 1000, \dots, 1008 (une par lot) \\
+Variable de contrôle & asiatique géométrique, prix exact 5,565509 \\
+Coefficient $\beta$ & estimé par régression sur chaque lot \\
+Antithétiques & non \\
+\midrule
+Résultat & \textbf{5,78223} \\
+Incertitude (IC 95 \%) & \textbf{$\pm$ 0,00044} \\
+Précision visée par l'étude & $\pm$ 0,01 \\
+Marge & \textbf{23 fois plus fine que la cible} \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsubsection*{Le calcul déroulé, sur le lot n\textsuperscript{o} 0}
+
+\textbf{Étape 1 --- simuler.} 100\,000 trajectoires de 252 pas sous la
+probabilité risque-neutre (dérive $r-q$), graine 999.
+
+\textbf{Étape 2 --- deux gains par trajectoire.} Sur la \emph{même} trajectoire
+on calcule la moyenne arithmétique des 252 prix, qui donne le gain $A$ du
+produit qu'on veut valoriser, et la moyenne géométrique, qui donne le gain $G$
+du contrôle. Les deux sont actualisés.
+
+\textbf{Étape 3 --- mesurer l'erreur de la simulation sur le contrôle.} On
+connaît la vraie valeur de la géométrique, donc on peut voir de combien la
+simulation se trompe dessus :
+
+\begin{center}
+\small
+\begin{tabular}{lr}
+\toprule
+Moyenne des gains géométriques simulés & 5,574205 \\
+Prix exact de la géométrique (formule fermée) & 5,565509 \\
+\midrule
+\textbf{Erreur observée de la simulation} & \textbf{$+$0,008696} \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Ce lot a surestimé la géométrique de 0,0087. Comme les deux options portent sur
+les mêmes trajectoires, il a très probablement surestimé l'arithmétique d'un
+montant comparable.
+
+\textbf{Étape 4 --- corriger.} On estime par régression de quel facteur $\beta$
+l'erreur se transmet de $G$ vers $A$, puis on retranche :
+
+\begin{center}
+\small
+\begin{tabular}{lr}
+\toprule
+Moyenne brute des gains arithmétiques & 5,790842 \\
+$\beta$ estimé $=\ \mathrm{Cov}(A,G)/\mathrm{Var}(G)$ & 1,0350 \\
+Correction $=\ \beta \times 0{,}008696$ & $-$0,009002 \\
+\midrule
+\textbf{Prix du lot 0} & \textbf{5,781840} \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\begin{encadre}
+\textbf{Ce que la correction fait à la dispersion.} Avant correction,
+l'écart-type des gains vaut \textbf{7,99}. Après, celui des gains corrigés
+tombe à \textbf{0,22}. L'erreur type du lot passe de 0,0253 à \textbf{0,0007} :
+un facteur \textbf{36}, pour le même nombre de trajectoires et un temps de
+calcul quasi identique.
+\end{encadre}
+
+\textbf{Étape 5 --- répéter et moyenner.} Neuf autres lots, graines 1000 à
+1008 :
+
+\begin{center}\small
+5,78184 \quad 5,78271 \quad 5,78230 \quad 5,78300 \quad 5,78153 \\
+5,78309 \quad 5,78265 \quad 5,78215 \quad 5,78078 \quad 5,78223
+\end{center}
+
+\begin{center}
+\small
+\begin{tabular}{lr}
+\toprule
+\textbf{Référence} $=$ moyenne des dix & \textbf{5,78223} \\
+Écart-type des dix & 0,00071 \\
+Erreur type $=\ 0{,}00071/\sqrt{10}$ & 0,00022 \\
+\textbf{Incertitude} $=\ 1{,}96 \times 0{,}00022$ & \textbf{$\pm$ 0,00044} \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsubsection*{L'appel de code}
+
+\begin{center}\small
+\begin{minipage}{0.93\linewidth}
+\ttfamily\footnotesize
+prix = [mc\_asian(S=100, K=100, r=0.05, sigma=0.20, T=1.0,\\
+\phantom{prix = [mc\_asian(}n\_steps=252, n\_paths=100\_000,\\
+\phantom{prix = [mc\_asian(}control\_variate=True,\\
+\phantom{prix = [mc\_asian(}rng=np.random.default\_rng(999 + k)).price\\
+\phantom{prix = [}for k in range(10)]\\[3pt]
+reference = mean(prix)\\
+incertitude = 1.96 * std(prix, ddof=1) / sqrt(10)
+\end{minipage}
+\end{center}
+
+C'est exactement ce que fait \texttt{reference\_par\_lots} dans
+\texttt{tools/etude\_convergence.py}.
+
+\subsection{Référence 4 --- les barrières : 1,3271 et 9,1235}
+
+\ou{tableaux 10 et 14, section 8.2.1.}
+
+Recette identique : mêmes 10 lots de 100\,000, mêmes graines 999 à 1008,
+$n = 252$. Seul le contrôle change.
+
+\begin{center}
+\small
+\begin{tabular}{lccc}
+\toprule
+Produit & Contrôle & Référence & Incertitude \\
+\midrule
+up-and-\textbf{in}  & vanille (Black--Scholes, prix exact) & 9,1235 & $\pm$ 0,0077 \\
+up-and-\textbf{out} & \emph{aucun ne fonctionne} & 1,3271 & $\pm$ 0,0077 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\begin{choix}
+\textbf{Limite assumée : la référence de la up-and-out.} Elle est 17 fois moins
+précise que celle de l'asiatique, et seulement 1,3 fois plus fine que la cible
+du centime. Ce n'est pas un défaut d'implémentation : la corrélation entre le
+gain de la up-and-out et celui de la vanille vaut $-0{,}01$, aucun contrôle
+n'est possible (section 4.4 de cette note). La seule façon d'améliorer cette
+référence serait d'augmenter le nombre de lots. C'est le point faible du
+projet, et il vaut mieux l'énoncer que le masquer.
+\end{choix}
+
+\begin{encadre}
+\textbf{Attention au test de parité in $+$ out $=$ vanille.} Il donne un écart
+de $-0{,}0000$, ce qui semble spectaculaire. Ce n'est pas une vérification
+indépendante : sur chaque trajectoire, in $+$ out $=$ vanille par
+construction, donc contrôler la « in » par la vanille avec $\beta \simeq 1$
+revient algébriquement à calculer « vanille moins out ». La somme redonne donc
+la vanille quoi qu'il arrive. Ce test contrôle l'implémentation, pas le
+résultat.
+\end{encadre}
+
+\subsection{Pourquoi la graine des références diffère de celle des mesures}
+
+Les références utilisent les graines 999 et suivantes, les mesures la graine
+12345. Ce n'est pas cosmétique.
+
+NumPy remplit la matrice des trajectoires ligne par ligne. Les 200\,000
+premières lignes d'un tirage de 400\,000 sont donc \emph{exactement} le tirage
+de taille 200\,000. Si la référence et la mesure partagent la graine, vérifier
+que « la référence tombe dans l'intervalle de confiance » revient à comparer un
+échantillon à un sur-ensemble de lui-même : le contrôle devient partiellement
+auto-réalisateur. Changer la graine coûte un caractère et rend le test honnête.
+
+\section{Les lots : pourquoi dix paquets plutôt qu'un seul gros calcul}
+
+\subsection{Ce que fait la méthode}
+
+Au lieu d'une simulation unique d'un million de trajectoires, on en lance dix
+indépendantes de cent mille, avec dix graines différentes. La référence est la
+moyenne des dix prix ; son incertitude est l'écart-type de ces dix prix divisé
+par $\sqrt{10}$. C'est la méthode des \emph{batch means}.
+
+\subsection{Est-ce équivalent à un million de trajectoires ? Oui}
+
+Dix lots de cent mille, c'est un million de trajectoires, ni plus ni moins.
+Aucune information n'est perdue, et la précision est la même :
+
+\begin{center}
+\small
+\begin{tabular}{lc}
+\toprule
+Erreur type mesurée par la dispersion des dix lots & 0,000224 \\
+Erreur type prédite par $\text{SE}(100\,000)/\sqrt{10}$ & 0,000222 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Les deux coïncident à 1 \% près. Un unique appel à $M = 1\,000\,000$ aurait
+donné le même résultat --- s'il avait pu tourner.
+
+\subsection{Alors pourquoi le faire ? Trois raisons}
+
+\begin{enumerate}\setlength\itemsep{2pt}
+\item \textbf{La mémoire.} C'est la raison décisive. Une simulation d'un
+      million de trajectoires sur 252 pas demande $10^6 \times 252 \times 8$
+      octets, soit \textbf{2 Go d'un seul tenant}, et le calcul échoue à
+      l'allocation. Dix lots de cent mille n'occupent jamais plus de 200 Mo à
+      la fois. C'est exactement la contrainte identifiée en section 11.5 du
+      rapport.
+\item \textbf{Une incertitude sans hypothèse.} On \emph{observe} directement de
+      combien le prix bouge d'un lot à l'autre. Les dix nombres sont sous les
+      yeux.
+\item \textbf{Des lots vraiment indépendants.} Chaque lot a sa propre graine :
+      aucun ne partage de trajectoire avec un autre, ni avec les mesures.
+\end{enumerate}
+
+\begin{choix}
+\textbf{Choix : dix lots de cent mille.} Ce n'est pas obligatoire. Si la
+mémoire le permettait, un unique appel donnerait le même résultat. Le nombre 10
+est un compromis : en dessous de 5 lots, l'écart-type calculé sur si peu de
+points est lui-même trop bruité pour donner une incertitude fiable ; au-delà
+de 20, on paie du temps de calcul pour un gain marginal. Le nombre 100\,000
+est la plus grosse taille qui tient confortablement en mémoire sur 252 pas.
+\end{choix}
+
+\section{La pente de convergence}
+
+\ou{figure 10 et sa légende, section 7.3.}
+
+\subsection{Le calcul, sur des chiffres réels}
+
+L'erreur type est mesurée à quatre tailles d'échantillon (asiatique
+arithmétique, Monte-Carlo seul, graine 12345), puis on ajuste une droite sur
+les logarithmes :
+
+\begin{center}
+\small
+\begin{tabular}{rrrr}
+\toprule
+$M$ & erreur type & $\ln M$ & $\ln(\text{SE})$ \\
+\midrule
+25\,000  & 0,05070 & 10,1266 & $-$2,9819 \\
+50\,000  & 0,03599 & 10,8198 & $-$3,3246 \\
+100\,000 & 0,02535 & 11,5129 & $-$3,6750 \\
+200\,000 & 0,01789 & 12,2061 & $-$4,0238 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+La régression linéaire de $\ln(\text{SE})$ sur $\ln M$ donne une droite de
+coefficient directeur $-0{,}5015$. On affiche l'opposé, soit une
+\textbf{pente de 0,501}.
+
+Vérification à la main sur les deux points extrêmes seulement :
+$$
+\frac{-2{,}9819 - (-4{,}0238)}{12{,}2061 - 10{,}1266} = \frac{1{,}0419}{2{,}0795}
+= 0{,}501 .
+$$
+Le même nombre. La régression sur quatre points ne fait que lisser.
+
+\subsection{Ce que la pente prouve, et ce qu'elle ne prouve pas}
+
+\begin{encadre}
+La pente \textbf{n'est pas une performance}. Elle vaut $1/2$ pour tout
+estimateur Monte-Carlo correctement construit, quelle que soit la technique
+employée. C'est un \textbf{diagnostic}.
+
+Une pente qui s'en écarterait signalerait un estimateur mal formé --- typiquement
+une erreur type calculée sur un échantillon antithétique aplati, où les tirages
+ne sont pas indépendants.
+
+Le gain des techniques de réduction de variance ne se lit donc pas dans la
+pente --- les quatre droites de la figure 10 sont parallèles --- mais dans leur
+\emph{hauteur}. Aucune technique ne change le régime de convergence : elles
+translatent la droite vers le bas.
+\end{encadre}
+
+\subsection{La pente n'est jamais imposée}
+
+Une version antérieure du code portait le commentaire « la pente doit valoir
+0.5 », formulation malheureuse : elle laisse croire que la valeur est
+contrainte. Elle ne l'est pas. La pente est le résultat brut d'une régression,
+elle n'est réinjectée dans aucun calcul, et le script affiche désormais
+l'\textbf{écart à 0,50} pour que le lecteur juge lui-même :
+
+\begin{center}
+\small
+\begin{tabular}{lrr}
+\toprule
+Méthode (asiatique) & pente mesurée & écart à 0,50 \\
+\midrule
+Monte-Carlo seul       & 0,501 & $+$0,001 \\
+$+$ antithétique       & 0,505 & $+$0,005 \\
+$+$ variable de contrôle & 0,508 & $+$0,008 \\
+$+$ les deux           & 0,507 & $+$0,007 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Les écarts sont de l'ordre du centième, ce qui est le bruit attendu d'une
+régression sur quatre points bruités. Si l'un d'eux valait 0,3 ou 0,7, il
+faudrait chercher l'erreur.
+
+\begin{choix}
+\textbf{Choix : titre de la figure 10.} L'ancien titre, « les quatre variantes
+ont la même pente », annonçait la conclusion avant de la montrer. Le titre est
+désormais simplement \textbf{« Erreur type selon $M$ »}, et les pentes mesurées
+figurent dans la légende, avec trois décimales.
+\end{choix}
+
+\section{Le nombre de trajectoires nécessaire : mesuré, non extrapolé}
+
+\ou{tableau 8, colonne « $M$ requis », et tableau 10.}
+
+\subsection{Ce qui a changé, et pourquoi}
+
+L'ancienne version extrapolait : elle mesurait l'erreur type sur un échantillon,
+puis appliquait la loi en $1/\sqrt{M}$ pour calculer le $M$ qui \emph{aurait}
+donné le centime. Le résultat était correct, mais indirect : on annonçait un
+nombre de trajectoires qu'on n'avait jamais simulé, et le calcul demandait au
+lecteur d'admettre une formule.
+
+La nouvelle version \textbf{mesure}. C'est plus simple à expliquer et ça ne
+repose sur rien.
+
+\subsection{Comment la mesure procède}
+
+\begin{enumerate}\setlength\itemsep{1pt}
+\item On tire un paquet de trajectoires.
+\item On met à jour trois compteurs : nombre de tirages, somme des gains, somme
+      des carrés. Ces trois nombres suffisent à recalculer la moyenne et
+      l'écart-type de \emph{tout} ce qui a été tiré depuis le début.
+\item Dès que la demi-largeur de l'intervalle de confiance cumulé passe sous le
+      centime, on s'arrête et on rapporte le nombre de trajectoires simulées.
+\end{enumerate}
+
+Les compteurs évitent de garder les trajectoires en mémoire : seuls trois
+nombres passent d'un paquet au suivant. C'est ce qui permet d'atteindre neuf
+millions de trajectoires sur 252 pas sans jamais dépasser quelques centaines de
+mégaoctets.
+
+\begin{choix}
+\textbf{Choix : la taille des paquets.} 500 trajectoires au début, puis un
+huitième de ce qui est déjà tiré, plafonné à 200\,000. Petits paquets au départ
+pour bien localiser les réponses faibles (le contrôle géométrique s'arrête à
+2\,000) ; gros paquets ensuite pour ne pas perdre de temps en appels quand la
+réponse se compte en millions. Ce réglage ne change pas le résultat, seulement
+la finesse avec laquelle on le localise : le $M$ rapporté est le premier
+multiple de la taille de paquet qui atteint la cible.
+\end{choix}
+
+\begin{choix}
+\textbf{Choix : la cible de $\pm 0{,}01$.} Un centime, c'est le pas de
+cotation. Si l'incertitude vaut $\pm 0{,}09$, on ne peut pas annoncer
+« 10,45 » : on ne sait pas si c'est 10,36 ou 10,55. Viser mieux que le centime
+n'aurait pas de sens non plus, l'écart entre prix acheteur et prix vendeur sur
+le marché étant bien plus large.
+\end{choix}
+
+\subsection{Résultats mesurés}
+
+Toutes les valeurs ci-dessous sont le nombre de trajectoires \emph{effectivement
+simulées} pour que l'intervalle de confiance passe sous $\pm 0{,}01$.
+
+\begin{center}
+\small
+\begin{tabular}{lrrrrr}
+\toprule
+Méthode & pente & écart à 0,50 & $M$ mesuré & prix obtenu & IC95 \\
+\midrule
+\multicolumn{6}{l}{\textbf{Call européen} ($n = 1$) --- référence exacte 10,4506}\\
+Monte-Carlo seul        & 0,497 & $-$0,003 & 8\,422\,106 & 10,4487 & 0,00994 \\
+$+$ antithétique        & 0,502 & $+$0,002 & 4\,222\,106 & 10,4552 & 0,00992 \\
+$+$ contrôle            & 0,499 & $-$0,001 & 1\,281\,664 & 10,4545 & 0,00971 \\
+$+$ les deux            & 0,502 & $+$0,002 & 2\,422\,106 & 10,4533 & 0,00987 \\
+\midrule
+\multicolumn{6}{l}{\textbf{Asiatique arithmétique} ($n = 252$) --- référence 5,7822 $\pm$ 0,0004}\\
+Monte-Carlo seul        & 0,501 & $+$0,001 & 2\,622\,106 & 5,7812 & 0,00967 \\
+$+$ antithétique        & 0,505 & $+$0,005 & 1\,281\,664 & 5,7729 & 0,00961 \\
+$+$ contrôle géométrique & 0,508 & $+$0,008 & \textbf{2\,000} & 5,7764 & 0,00964 \\
+$+$ les deux            & 0,507 & $+$0,007 & 2\,000 & 5,7739 & 0,00944 \\
+\midrule
+\multicolumn{6}{l}{\textbf{Barrière up-and-out} $B = 120$ --- référence 1,3271 $\pm$ 0,0077}\\
+Monte-Carlo seul        & 0,499 & $-$0,001 & 444\,024 & 1,3246 & 0,00999 \\
+$+$ antithétique        & 0,498 & $-$0,002 & 394\,688 & 1,3270 & 0,00995 \\
+$+$ contrôle vanille    & 0,499 & $-$0,001 & 444\,024 & 1,3247 & 0,00999 \\
+\midrule
+\multicolumn{6}{l}{\textbf{Barrière up-and-in} $B = 120$ --- référence 9,1235 $\pm$ 0,0077}\\
+Monte-Carlo seul        & 0,500 & $-$0,000 & 8\,822\,106 & 9,1217 & 0,00999 \\
+$+$ contrôle vanille    & 0,499 & $-$0,001 & 444\,024 & 9,1258 & 0,00999 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Trois lectures.
+
+\textbf{Le contrôle géométrique divise l'effort par 1311} sur l'asiatique :
+2\,000 trajectoires au lieu de 2,6 millions. C'est le résultat le plus
+spectaculaire du projet, et il vient entièrement d'une corrélation de 0,9996
+entre les deux payoffs.
+
+\textbf{Sur la up-and-out, le contrôle ne sert à rien} : 444\,024 trajectoires
+avec ou sans lui, au chiffre près. La corrélation avec la vanille est nulle.
+
+\textbf{Sur la up-and-in, le même contrôle divise l'effort par 20} : 444\,024
+au lieu de 8,8 millions. Et l'on retrouve exactement le nombre de la up-and-out,
+ce qui n'est pas un hasard : contrôler la « in » par la vanille revient
+algébriquement à estimer « vanille moins out », donc à hériter de la variance
+de la out.
+
+\begin{encadre}
+\textbf{Cohérence avec l'ancienne extrapolation.} Sur le call européen sans
+réduction de variance, l'extrapolation annonçait 8\,331\,880 trajectoires ; la
+mesure directe en trouve 8\,422\,106, soit 1 \% d'écart. La loi en $1/\sqrt{M}$
+était donc bien vérifiée --- mais il n'y a plus besoin de l'invoquer.
+\end{encadre}
+
+\section{Les variables de contrôle : pourquoi ces choix}
+
+\ou{section 7.5.2 et tableau 10.}
+
+\subsection{Le principe, sans formule}
+
+On cherche à valoriser un produit A dont on ne connaît pas le prix. On repère
+un produit B qui \emph{ressemble} à A et dont on connaît, lui, le prix exact.
+On simule les deux avec les mêmes tirages. On regarde de combien la simulation
+se trompe sur B --- puisqu'on connaît la vérité pour B --- et on suppose qu'elle
+se trompe de façon comparable sur A. On retranche cette erreur.
+
+\begin{encadre}
+\textbf{Ce qui décide de tout : la corrélation.} Si la corrélation entre les
+deux payoffs vaut $\rho$, la variance résiduelle est réduite d'un facteur
+$1-\rho^2$. Une corrélation de 0,99 divise la variance par 50 ; une corrélation
+nulle n'apporte rien. \textbf{Choisir un contrôle, c'est choisir une
+corrélation.}
+\end{encadre}
+
+\subsection{Européenne : le sous-jacent lui-même}
+
+Contrôle : le prix terminal $S_T$ actualisé. Son espérance est connue sans le
+moindre calcul : sous la probabilité risque-neutre, le prix actualisé est une
+martingale, donc son espérance vaut le spot d'aujourd'hui corrigé du dividende.
+Corrélation mesurée avec un call à la monnaie : \textbf{environ 0,90}. Gain
+modeste mais gratuit.
+
+\subsection{Asiatique : la version géométrique}
+
+Contrôle : l'asiatique géométrique, qui possède une formule fermée. C'est le
+choix classique du domaine, introduit par Kemna et Vorst en 1990.
+
+Intuition : les deux options portent sur \emph{la même trajectoire} et
+regardent \emph{les mêmes 252 prix}. Seule la façon de les moyenner diffère.
+Elles ne peuvent quasiment pas se désolidariser.
+
+\begin{center}
+\small
+\begin{tabular}{lr}
+\toprule
+Corrélation mesurée (arithmétique, géométrique) & \textbf{0,99962} \\
+Réduction de variance $1-\rho^2$ & 0,00075 \\
+Gain sur la variance & facteur \textbf{1330} \\
+Gain sur l'erreur type & facteur 36,5 \\
+$\beta$ optimal estimé & 1,0350 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Le facteur 1330 théorique et le facteur 1311 mesuré au tableau précédent sont
+le même nombre, à la résolution des paquets près.
+
+\subsection{Barrière : la vanille de mêmes caractéristiques}
+
+Contrôle : la vanille de même strike et même maturité, dont Black--Scholes donne
+le prix exact. L'intuition est que la barrière \emph{est} la vanille, amputée
+des trajectoires qui franchissent le seuil.
+
+\begin{center}
+\small
+\begin{tabular}{lcc}
+\toprule
+& Corrélation avec la vanille & Gain mesuré \\
+\midrule
+up-and-\textbf{in}  & $+0{,}974$ & $\times 20$ \\
+up-and-\textbf{out} & $-0{,}010$ & \textbf{aucun} \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\textbf{Pourquoi.} La up-and-in ne paie que si la barrière est touchée, donc
+dans les scénarios franchement haussiers --- précisément ceux où la vanille paie
+le plus. Les deux montent ensemble. La up-and-out, au contraire, ne paie que
+dans une bande étroite : finir au-dessus du strike \emph{sans jamais} dépasser
+la barrière. Les trajectoires les plus rentables pour la vanille sont
+exactement celles qui la tuent. La corrélation s'annule mécaniquement.
+
+\textbf{Et il n'existe aucun détour.} Contrôler la « in » par la vanille redonne
+« vanille moins out » : la variance résiduelle reste celle de la out. Ce produit
+est la partie irréductible du problème. La littérature apporte une réponse,
+mais d'une autre nature : un conditionnement sur la survie, et non une variable
+de contrôle (Glasserman et Staum, 2001).
+
+\subsection{Pourquoi les antithétiques échouent aussi sur la barrière}
+
+Les variables antithétiques supposent un payoff monotone en l'aléa. Une
+barrière ne l'est pas : un choc très positif désactive l'option (gain nul), un
+choc très négatif la laisse hors de la monnaie (gain nul également). Les deux
+extrêmes donnent zéro, la corrélation négative recherchée disparaît. Le tableau
+mesuré le confirme : gain de 1,1 seulement.
+
+\begin{choix}
+\textbf{Choix : $\beta$ estimé sur le même échantillon que le prix.} La théorie
+recommande un échantillon pilote séparé, car estimer $\beta$ sur les données
+qu'on corrige introduit un biais d'ordre $1/M$ (Glasserman, \S 4.1.3). À
+$M \geq 10^5$ ce biais est négligeable devant l'erreur type, et la simplicité a
+été préférée. C'est un choix, pas une omission.
+\end{choix}
+
+\section{Récapitulatif des choix assumés}
+
+\begin{center}
+\small
+\renewcommand{\arraystretch}{1.15}
+\begin{tabular}{p{4.1cm}p{3.0cm}p{7.6cm}}
+\toprule
+Décision & Valeur retenue & Pourquoi \\
+\midrule
+Fixings des exotiques & $n = 252$ & jours de bourse ; doit être cité avec chaque prix \\
+Cible de précision & $\pm$ 0,01 & le pas de cotation ; en dessous, calcul gaspillé \\
+Niveau de confiance & 95 \% ($\times 1{,}96$) & convention usuelle \\
+Lots pour la référence & 10 $\times$ 100\,000 & mémoire ; 5 lots donnent une incertitude trop bruitée \\
+Graine des références & 999 & différente de 12345 pour éviter le recouvrement d'échantillons \\
+Graine des mesures & 12345 & fixée pour la reproductibilité \\
+Taille des paquets & 500, puis $M/8$, max 200\,000 & compromis résolution / vitesse \\
+$\beta$ du contrôle & estimé sur l'échantillon & biais en $1/M$ négligeable ici \\
+Antithétiques + contrôle & combinés & se composent, une fois $\beta$ estimé sur les moyennes de paires (voir ci-dessous) \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\paragraph{Rectificatif : antithétiques et variable de contrôle se composent.}
+Une version antérieure de cette note indiquait que combiner les deux techniques
+faisait moins bien que le contrôle seul. C'était la conséquence d'un défaut
+d'implémentation, depuis corrigé : le coefficient $\beta$ était estimé sur
+l'échantillon \emph{aplati} au lieu des moyennes de paires. Or l'antithétique
+annule la composante impaire de l'aléa ; le contrôle aplati visait précisément
+cette composante, donc ne trouvait plus rien à corriger. Régressé sur les
+moyennes de paires, le même contrôle devient une fonction paire de l'aléa et
+attaque le complément. Sur le call européen à la monnaie, $M=400\,000$ :
+l'erreur type passe de $0{,}01237$ à $0{,}00433$, la corrélation de $0{,}9245$ à
+$0{,}9644$, et $\beta$ de $0{,}674$ à $2{,}508$. Le nombre de trajectoires mesuré
+pour coter au centime passe de $2\,422\,106$ à $311\,854$. Le prix, lui, n'était
+pas affecté : l'estimateur à variable de contrôle est sans biais quelle que soit
+la valeur de $\beta$. Voir le rapport, section 7.5, et
+\texttt{CORRECTIONS.md} §9.
+
+\section{Sources}
+
+\newcommand{\refitem}[3]{\textbf{#1}\\ #2 \\ {\footnotesize\url{#3}}\\[4pt]}
+
+\refitem{Kemna, A.G.Z. et Vorst, A.C.F. (1990)}{%
+« A pricing method for options based on average asset values », \emph{Journal
+of Banking \& Finance}, 14(1), 113--129. --- \textsl{L'article fondateur du
+contrôle géométrique pour l'asiatique arithmétique.}}{%
+https://doi.org/10.1016/0378-4266(90)90039-5}
+
+\refitem{Boyle, P. (1977)}{%
+« Options: A Monte Carlo Approach », \emph{Journal of Financial Economics},
+4(3), 323--338. --- \textsl{Introduction du Monte-Carlo et des variables de
+contrôle en valorisation d'options.}}{%
+https://doi.org/10.1016/0304-405X(77)90005-8}
+
+\refitem{Boyle, P., Broadie, M. et Glasserman, P. (1997)}{%
+« Monte Carlo methods for security pricing », \emph{Journal of Economic
+Dynamics and Control}, 21(8--9), 1267--1321. --- \textsl{Synthèse de référence :
+coefficient optimal, gain en $1-\rho^2$, efficacité intégrant le temps de
+calcul. Version libre d'accès :}}{%
+https://www.cs.hunter.cuny.edu/~felisav/StochasticProcesses/Course_Material_files/BBG_jedc96.pdf}
+
+\refitem{Glasserman, P. (2004)}{%
+\emph{Monte Carlo Methods in Financial Engineering}, Springer, chapitre 4.
+--- \textsl{Variables de contrôle (\S 4.1), antithétiques (\S 4.2), biais
+d'estimation de $\beta$ (\S 4.1.3).}}{%
+https://doi.org/10.1007/978-0-387-21617-1}
+
+\refitem{Glasserman, P. et Staum, J. (2001)}{%
+« Conditioning on One-Step Survival for Barrier Option Simulations »,
+\emph{Operations Research}, 49(6), 923--937. --- \textsl{La technique qui
+fonctionne sur la barrière knock-out, là où la variable de contrôle
+échoue.}}{%
+https://doi.org/10.1287/opre.49.6.923.10018}
+
+\refitem{Turnbull, S. et Wakeman, L. (1991)}{%
+« A Quick Algorithm for Pricing European Average Options », \emph{Journal of
+Financial and Quantitative Analysis}, 26(3), 377--389. --- \textsl{Approximation
+analytique de l'asiatique arithmétique : alternative au contrôle, utilisable
+comme seconde référence.}}{%
+https://doi.org/10.2307/2331214}
+
+\end{document}

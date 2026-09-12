@@ -1,0 +1,93 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.ipynb_checkpoints/
+# ---------------------------------------------------------------------------
+# Python
+# ---------------------------------------------------------------------------
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.eggs/
+build/
+dist/
+
+# ---------------------------------------------------------------------------
+# Environnements virtuels / Virtual environments
+# ---------------------------------------------------------------------------
+.venv/
+venv/
+env/
+ENV/
+.python-version
+
+# ---------------------------------------------------------------------------
+# Jupyter
+# ---------------------------------------------------------------------------
+.ipynb_checkpoints/
+*/.ipynb_checkpoints/*
+
+# ---------------------------------------------------------------------------
+# Tests / typage / linting
+# ---------------------------------------------------------------------------
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+.tox/
+
+# ---------------------------------------------------------------------------
+# Sorties LaTeX intermediaires (le .tex source et le .pdf final restent versionnes)
+# LaTeX build artefacts (the .tex source and final .pdf stay tracked)
+# ---------------------------------------------------------------------------
+*.aux
+*.log
+*.out
+*.toc
+*.lof
+*.lot
+*.fls
+*.fdb_latexmk
+*.synctex.gz
+
+# ---------------------------------------------------------------------------
+# Systeme / OS junk
+# ---------------------------------------------------------------------------
+.DS_Store
+Thumbs.db
+
+# ---------------------------------------------------------------------------
+# Editeurs / IDE
+# ---------------------------------------------------------------------------
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# ---------------------------------------------------------------------------
+# Secrets / variables d'environnement
+# ---------------------------------------------------------------------------
+.env
+.env.*
+
+.pdf/
+.tex/
+notebooks/
+pytest.ini
+ compare_ql.py
+data/
+images/
+CORRECTIONS.md
+# Données mises en cache
+data/*.csv
+data/*.parquet
+
+# OS / éditeurs
+.DS_Store
+.vscode/
+.idea/

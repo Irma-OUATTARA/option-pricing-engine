@@ -1,0 +1,13 @@
+Call europeen & Black-Scholes (prix seul) & -- & 2.4 \\textmu s \\\\
+Call europeen & Black-Scholes (prix + 5 Greeks) & -- & 9.4 \\textmu s \\\\
+Call europeen & Arbre CRR & N = 1 000 & 4.1 ms \\\\
+Call europeen & Arbre CRR & N = 10 000 & 201.5 ms \\\\
+Put americain & Arbre CRR & N = 1 000 & 21.7 ms \\\\
+Call europeen & Monte-Carlo & M = 1e5 & 2.6 ms \\\\
+Call europeen & Monte-Carlo + controle & M = 1e5 & 4.4 ms \\\\
+Asiatique arithm. & Monte-Carlo & M = 1e5, n = 252 & 824.0 ms \\\\
+Asiatique arithm. & Monte-Carlo + controle geo. & M = 1e5, n = 252 & 936.8 ms \\\\
+Barriere up-and-out & Monte-Carlo & M = 1e5, n = 252 & 835.3 ms \\\\
+Lookback flottante & Monte-Carlo & M = 1e5, n = 252 & 853.4 ms \\\\
+Volatilite implicite & Newton + repli Brent & 1 inversion & 73.5 \\textmu s \\\\
+Surface complete & inversion en lot & 400 options & 14.4 ms \\\\
